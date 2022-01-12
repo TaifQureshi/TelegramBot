@@ -1,8 +1,16 @@
+"""
+
+Created by Taif Qureshi
+Github: https://github.com/TaifQureshi
+
+"""
+
 from telegram import Bot, TelegramError, BotCommand, Update
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 import logging
 from typing import Callable, List, Any
 from twisted.internet import task
+
 logger = logging.getLogger("bot")
 
 
