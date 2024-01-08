@@ -11,7 +11,6 @@ def help(update, context):
 
 # help the set the command in telegram so user can see when / is enter
 bot.add_command(("help", "help function"))
-
 bot.set_command("help", help)
 
 bot.start_bot()

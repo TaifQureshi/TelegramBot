@@ -1,2 +1,2 @@
-python-telegram-bot==13.10
-Twisted~=20.3.0
+python-telegram-bot==20.7
+Twisted~=23.10.0
