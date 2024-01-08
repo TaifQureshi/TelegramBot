@@ -1,35 +1,89 @@
-from telegram import Update
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler
-import logging
-from functools import partial
-from typing import Callable, Union, List, Any
-import asyncio
-from twisted.internet import reactor
+"""
 
-logger = logging.getLogger("TelegramBot")
+Created by Taif Qureshi
+Github: https://github.com/TaifQureshi
+
+"""
+
+from telegram import Bot, TelegramError, BotCommand, Update
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+import logging
+from typing import Callable, List, Any
+from twisted.internet import task
+
+logger = logging.getLogger("bot")
 
 
 class TelegramBot(object):
-    """
-    TelegramBot
-    Args:
-        object (_type_): _description_
-    """
-    def __init__(self, token: str) -> None:
-        self._token = token
-        self._application = Application.builder().token(self._token).build()
-        self._application.add_error_handler(partial(self.error, self))
-        self.error_callback: Union[None, Callable] = None
+    def __init__(self, token):
+        """
+        :param token:
+            telegram bot token
+        """
+        self.bot = Bot(token)
+        self.updater = Updater(token, use_context=True)
+        self.dispatcher = self.updater.dispatcher
 
-    
-    def start(self, run_in_reactor = False):
-        if run_in_reactor:
-            reactor.callFromThread(self._application.run_polling, allowed_updates=Update.ALL_TYPES)
-        else:
-            self._application.run_polling(allowed_updates=Update.ALL_TYPES)
+        # self.dispatcher.add_error_handler(self.error)
 
+        self.get_update_task = task.LoopingCall(self.get_update)
+        self.last_update_id = 0
 
-    def error(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    def start_bot(self):
+        """
+        :return:
+
+        Run the bot
+        """
+        print("Bot started")
+        self.updater.start_polling()
+        self.updater.idle()
+
+    def start_polling(self, interval=1.0):
+        """
+        :param interval:
+            interval to poll
+        :return:
+
+        Function to use while using Twisted reactor
+        """
+        print("Bot started")
+        self.get_update_task.start(interval)
+
+    def clean_updates(self):
+        logger.debug('Cleaning updates from Telegram server')
+        updates = self.bot.get_updates()
+        while updates:
+            updates = self.bot.get_updates(updates[-1].update_id + 1)
+
+    def stop_polling(self):
+        self.get_update_task.stop()
+
+    def get_update(self):
+        """
+        Twisted looping task to get update
+        :return:
+        """
+        print("Bot started")
+        updates = None
+        try:
+            updates = self.bot.get_updates(
+                self.last_update_id,
+                timeout=10,
+                read_latency=2.0)
+        except TelegramError as e:
+            self.dispatcher.dispatch_error(e, e)
+
+        if updates:
+            for update in updates:
+                try:
+                    self.dispatcher.process_update(update)
+                    self.last_update_id = updates[-1].update_id + 1
+                except TelegramError as e:
+                    self.dispatcher.dispatch_error(update, e)
+
+    @staticmethod
+    def error(update, context) -> None:
         """
 
         :param update:
@@ -42,28 +96,59 @@ class TelegramBot(object):
         """
         logger.warning('Update "%s" caused error "%s"', update, context.error)
         logger.error(context.error)
-        if self.error_callback:
-            self.error_callback(update, context)
 
-    
-    def add_error_handler(self, callback: Callable):
-        self.error_callback = callback
+    def add_command(self, commands) -> None:
+        """
 
-    def add_message_handler(self, callback: Callable):
-        self._application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, partial(self.async_callback, self, callback)))
+        :param commands:
+            can be list of tuples or tuple
+            tuple -> (command, description)
+        :return:
 
-    async def async_callback(self, callback: Callable,update: Update, context: ContextTypes.DEFAULT_TYPE):
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, callback, update, context)
+        set the command to the bot
+        """
+        list_commands = []
+        if type(commands) == list:
+            for command in commands:
+                list_commands.append(BotCommand(command[0], command[1]))
 
-    def add_command(self, command: str, callback: Callable):
-        self._application.add_handler(CommandHandler(command, partial(self.async_callback, self, callback)))
+        elif type(commands) == tuple:
+            list_commands.append(BotCommand(commands[0], commands[1]))
 
-    def send_message(self, update: Update, message: str):
-        asyncio.run(update.message.reply_text(message))
+        self.bot.set_my_commands(list_commands)
 
-    def add_call_back_query_handler(self, callback: Callable):
-        self._application.add_handler(CallbackQueryHandler(partial(self.async_callback, self, callback)))
+    def set_command(self, command, callback: Callable) -> None:
+        """
+        :param command:
+            bot command
+        :param callback:
+            callback function to run when command is received
+        :return:
+
+        bind the telegram command to the function
+        """
+
+        self.dispatcher.add_handler(CommandHandler(command, callback))
+
+    def add_message_handler(self, callback: Callable) -> None:
+        """
+        :param callback:
+            set the callback function when user enter message
+        :return:
+        """
+        self.dispatcher.add_handler(MessageHandler(Filters.text, callback))
+
+    def send_message(self, update: Update, message: str) -> None:
+        """
+        :param update:
+            update in callback function on command or message
+        :param message:
+            text which has to be send to user
+        :return:
+
+        send the message to user
+        """
+        update.message.reply_text(message)
 
     @staticmethod
     def smart_keyboard(elements: List[Any], columns=2) -> List:
