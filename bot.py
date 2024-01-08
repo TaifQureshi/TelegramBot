@@ -56,7 +56,7 @@ class TelegramBot(object):
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, callback, update, context)
 
-    def add_commands(self, command: str, callback: Callable):
+    def add_command(self, command: str, callback: Callable):
         self._application.add_handler(CommandHandler(command, partial(self.async_callback, self, callback)))
 
     def send_message(self, update: Update, message: str):
