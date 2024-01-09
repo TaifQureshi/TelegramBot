@@ -113,3 +113,10 @@ class TelegramBot(object):
         :return:
         """
         self._bot.add_handler(MessageHandler(filters.TEXT & ~filter.COMMAND, callback))
+
+    async def send_message(self, update: Update, message):
+        await update.message.reply_text(message)
+
+    async def send_markup(self, update, message, markup: InlineKeyboardMarkup):
+        await update.message.reply_text(message, reply_markup=markup)
+
