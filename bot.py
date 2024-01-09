@@ -5,12 +5,10 @@ Github: https://github.com/TaifQureshi
 
 """
 
-from telegram import Bot, BotCommand, Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.error import TelegramError
-from telegram.ext import Updater, CommandHandler, MessageHandler, filters
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import CommandHandler, MessageHandler, filters, Application
 import logging
 from typing import Callable, List, Any
-from twisted.internet import task
 
 logger = logging.getLogger("bot")
 
@@ -70,70 +68,19 @@ class TelegramBot(object):
         :param token:
             telegram bot token
         """
-        self.bot = Bot(token)
-        self.updater = Updater(token, use_context=True)
-        self.dispatcher = self.updater.dispatcher
+        self._bot = Application.builder().token(token).build()
 
-        # self.dispatcher.add_error_handler(self.error)
-
-        self.get_update_task = task.LoopingCall(self.get_update)
-        self.last_update_id = 0
-
-    def start_bot(self):
+    def start(self):
         """
-        :return:
-
-        Run the bot
-        """
-        print("Bot started")
-        self.updater.start_polling()
-        self.updater.idle()
-
-    def start_polling(self, interval=1.0):
-        """
-        :param interval:
-            interval to poll
         :return:
 
         Function to use while using Twisted reactor
         """
         print("Bot started")
-        self.get_update_task.start(interval)
+        self._bot.run_polling(allowed_updates=Update.ALL_TYPES)
+        self._bot.add_error_handler(self.error)
 
-    def clean_updates(self):
-        logger.debug('Cleaning updates from Telegram server')
-        updates = self.bot.get_updates()
-        while updates:
-            updates = self.bot.get_updates(updates[-1].update_id + 1)
-
-    def stop_polling(self):
-        self.get_update_task.stop()
-
-    def get_update(self):
-        """
-        Twisted looping task to get update
-        :return:
-        """
-        print("Bot started")
-        updates = None
-        try:
-            updates = self.bot.get_updates(
-                self.last_update_id,
-                timeout=10,
-                read_latency=2.0)
-        except TelegramError as e:
-            self.dispatcher.dispatch_error(e, e)
-
-        if updates:
-            for update in updates:
-                try:
-                    self.dispatcher.process_update(update)
-                    self.last_update_id = updates[-1].update_id + 1
-                except TelegramError as e:
-                    self.dispatcher.dispatch_error(update, e)
-
-    @staticmethod
-    def error(update, context) -> None:
+    async def error(self,update, context) -> None:
         """
 
         :param update:
@@ -147,27 +94,7 @@ class TelegramBot(object):
         logger.warning('Update "%s" caused error "%s"', update, context.error)
         logger.error(context.error)
 
-    def add_command(self, commands) -> None:
-        """
-
-        :param commands:
-            can be list of tuples or tuple
-            tuple -> (command, description)
-        :return:
-
-        set the command to the bot
-        """
-        list_commands = []
-        if type(commands) == list:
-            for command in commands:
-                list_commands.append(BotCommand(command[0], command[1]))
-
-        elif type(commands) == tuple:
-            list_commands.append(BotCommand(commands[0], commands[1]))
-
-        self.bot.set_my_commands(list_commands)
-
-    def set_command(self, command, callback: Callable) -> None:
+    def add_command(self, command, callback: Callable) -> None:
         """
         :param command:
             bot command
@@ -177,8 +104,7 @@ class TelegramBot(object):
 
         bind the telegram command to the function
         """
-
-        self.dispatcher.add_handler(CommandHandler(command, callback))
+        self._bot.add_handler(CommandHandler(command, callback))
 
     def add_message_handler(self, callback: Callable) -> None:
         """
@@ -186,16 +112,4 @@ class TelegramBot(object):
             set the callback function when user enter message
         :return:
         """
-        self.dispatcher.add_handler(MessageHandler(filters.text, callback))
-
-    def send_message(self, update: Update, message: str) -> None:
-        """
-        :param update:
-            update in callback function on command or message
-        :param message:
-            text which has to be send to user
-        :return:
-
-        send the message to user
-        """
-        update.message.reply_text(message)
+        self._bot.add_handler(MessageHandler(filters.TEXT & ~filter.COMMAND, callback))
