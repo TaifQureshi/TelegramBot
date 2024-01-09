@@ -5,7 +5,8 @@ Github: https://github.com/TaifQureshi
 
 """
 
-from telegram import Bot, TelegramError, BotCommand, Update
+from telegram import Bot, BotCommand, Update
+from telegram.error import TelegramError
 from telegram.ext import Updater, CommandHandler, MessageHandler, filters
 import logging
 from typing import Callable, List, Any
