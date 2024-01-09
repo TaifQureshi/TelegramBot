@@ -112,7 +112,7 @@ class TelegramBot(object):
             set the callback function when user enter message
         :return:
         """
-        self._bot.add_handler(MessageHandler(filters.TEXT & ~filter.COMMAND, callback))
+        self._bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, callback))
 
     async def send_message(self, update: Update, message):
         await update.message.reply_text(message)
