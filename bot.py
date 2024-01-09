@@ -6,7 +6,7 @@ Github: https://github.com/TaifQureshi
 """
 
 from telegram import Bot, TelegramError, BotCommand, Update
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram.ext import Updater, CommandHandler, MessageHandler, filters
 import logging
 from typing import Callable, List, Any
 from twisted.internet import task
@@ -136,7 +136,7 @@ class TelegramBot(object):
             set the callback function when user enter message
         :return:
         """
-        self.dispatcher.add_handler(MessageHandler(Filters.text, callback))
+        self.dispatcher.add_handler(MessageHandler(filters.text, callback))
 
     def send_message(self, update: Update, message: str) -> None:
         """
