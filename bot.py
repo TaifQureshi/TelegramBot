@@ -5,7 +5,7 @@ Github: https://github.com/TaifQureshi
 
 """
 
-from telegram import Bot, BotCommand, Update
+from telegram import Bot, BotCommand, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.error import TelegramError
 from telegram.ext import Updater, CommandHandler, MessageHandler, filters
 import logging
@@ -13,6 +13,55 @@ from typing import Callable, List, Any
 from twisted.internet import task
 
 logger = logging.getLogger("bot")
+
+
+def smart_keyboard(elements: List[Any], columns=2) -> List:
+    """
+    :param elements:
+        list of telegram InlineKeyboardButton, or any element
+    :param columns:
+        no to columns to arrange the element
+    :return:
+        list of list containing elements
+    rearranged element in specified shape or columns and row
+    """
+    kb = []
+    ele = []
+    column_count = 1
+
+    for element in elements:
+        ele.append(element)
+        if column_count == columns:
+            kb.append(ele)
+            ele = []
+            column_count = 1
+        else:
+            column_count = column_count + 1
+
+    if len(ele) > 0:
+        kb.append(ele)
+
+    return kb
+
+
+def add_keyboard(data: dict, columns=2) -> InlineKeyboardMarkup:
+    inline_keyboard = []
+    for name, value in data.items():
+        inline_keyboard.append(InlineKeyboardButton(name, callback_data=value))
+    return InlineKeyboardMarkup(smart_keyboard(inline_keyboard, columns))
+
+
+def get_chat_id_user_name(update: Update):
+    chat_id = None
+    user_name = None
+    if update.message is not None:
+        chat_id = update.message.chat_id
+        user_name = update.message.from_user.username
+    elif update.callback_query is not None:
+        chat_id = update.callback_query.message.chat_id
+        user_name = update.callback_query.from_user.username
+
+    return chat_id, user_name
 
 
 class TelegramBot(object):
@@ -150,32 +199,3 @@ class TelegramBot(object):
         send the message to user
         """
         update.message.reply_text(message)
-
-    @staticmethod
-    def smart_keyboard(elements: List[Any], columns=2) -> List:
-        """
-        :param elements:
-            list of telegram InlineKeyboardButton, or any element
-        :param columns:
-            no to columns to arrange the element
-        :return:
-            list of list containing elements
-        rearranged element in specified shape or columns and row
-        """
-        kb = []
-        ele = []
-        column_count = 1
-
-        for element in elements:
-            ele.append(element)
-            if column_count == columns:
-                kb.append(ele)
-                ele = []
-                column_count = 1
-            else:
-                column_count = column_count + 1
-
-        if len(ele) > 0:
-            kb.append(ele)
-
-        return kb
